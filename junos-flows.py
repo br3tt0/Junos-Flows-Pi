@@ -1,5 +1,5 @@
 import xml.etree.ElementTree as xml_tree
-from xml.etree.ElementTree import XML, fromstring, tostring
+
 
 def _get_junos_config(junos_root):
     config_root = None
@@ -8,13 +8,6 @@ def _get_junos_config(junos_root):
             config_root = child
 
     return config_root
-
-
-junos_file_xml = 'AUDCCFOIF003XML.xml'
-junos_tree = xml_tree.parse(junos_file_xml)
-junos_root = junos_tree.getroot()
-junos_config = _get_junos_config(junos_root)
-
 
 class SecurityConfig:
     def __init__(self, junos_config):
@@ -221,9 +214,61 @@ class AclPolicyActions:
                 self.action_unknown = True
                 print('Action Unknown: True', child.tag)
 
+    def get_actions(self):
+        actions = []
+        if self.permit:
+            actions.append('Permit: True')
+        else:
+            actions.append('Permit: False')
+
+        if self.deny:
+            actions.append('Deny: True')
+        else:
+            actions.append('Deny: False')
+
+        if self.count:
+            actions.append('Count: True')
+        else:
+            actions.append('Count: False')
+
+        if self.log:
+            actions.append('Log: True')
+        else:
+            actions.append('Log: False')
+
+        return actions
+
 
 def main():
+    junos_file_xml = 'AUDCCFOIF003XML.xml'
+    junos_tree = xml_tree.parse(junos_file_xml)
+    junos_root = junos_tree.getroot()
+    junos_config = _get_junos_config(junos_root)
+
     sec_conf = SecurityConfig(junos_config)
+    sec_policies = sec_conf.policies
 
+    for policy in sec_policies.policies:
+        from_zone = policy.from_zone_name
+        to_zone = policy.to_zone_name
+        policy_state = policy.state
+        acl_policies = policy.acl_policies
+        acl_count = 0
+        print('Policy:')
+        print('\t', 'From Zone: '+ from_zone)
+        print('\t', 'To: Zone: ' + to_zone)
+        print('\t', 'State: ' + policy_state)
 
-main()
+        for acl in acl_policies:
+            acl_count += 1
+            print('\t', 'ACL:', acl_count)
+            print('\t\t', 'Description:', acl.description)
+            print('\t\t', 'Source Address Names:', acl.match.source_zone_address_names)
+            print('\t\t', 'Destination Address Names:', acl.match.destination_zone_address_names)
+            print('\t\t', 'Application Names:', acl.match.application_names)
+            print('\t\t', 'Action:', acl.actions.get_actions())
+
+        print('\n')
+
+if __name__ == "__main__":
+    main()
