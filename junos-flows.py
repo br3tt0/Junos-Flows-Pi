@@ -276,7 +276,7 @@ class FunctionalZones:
 class ManagementZone:
     def __init__(self, management_zone_element):
         self.interfaces = self._get_interfaces(management_zone_element)
-        self.host_inbound_traffic = None
+        self.host_inbound_traffic = self._get_host_inbound_traffic(management_zone_element)
 
     def _get_interfaces(self, management_zone_element):
         interfaces = []
@@ -285,15 +285,21 @@ class ManagementZone:
                 interfaces.append(Interface(child))
         return interfaces
 
+    def _get_host_inbound_traffic(self, management_zone_element):
+        system_services = []
+        host_inbound_traffic = management_zone_element.find('host-inbound-traffic')
+        for system_service in host_inbound_traffic.findall('system-services'):
+            system_services.append(SystemService(system_service))
+
+
+class SystemService:
+    def __init__(self, system_service_element):
+        self.name = system_service_element.find('name').text
+
 
 class Interface:
     def __init__(self, interface_element):
-        self.name = self._get_name(interface_element)
-
-    def _get_name(self, interface_element):
-        name = interface_element.find('name').text
-
-        return name
+        self.name = interface_element.find('name').text
 
 
 class SecurityZone:
