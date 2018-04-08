@@ -247,7 +247,7 @@ class AclPolicyActions:
 class SecurityZones:
     def __init__(self, zones_element):
         self.functional_zone = self._get_functional_zones(zones_element)
-        self.security_zones = None
+        self.security_zones = self._get_security_zones(zones_element)
 
     def _get_functional_zones(self, zones_element):
         functional_zones_element = None
@@ -257,6 +257,16 @@ class SecurityZones:
                 break
         return FunctionalZones(functional_zones_element)
 
+    def _get_security_zones(self, zones_element):
+        security_zones = []
+        security_zone_elements = zones_element.findall('security-zone')
+        for security_zone in security_zone_elements:
+            security_zones.append(SecurityZone(security_zone))
+
+        return security_zones
+
+    def get_ip_prefixes(self, zone_name, address_name):
+        pass
 
 class FunctionalZones:
     def __init__(self, functional_zones_element):
@@ -303,15 +313,76 @@ class Interface:
 
 
 class SecurityZone:
-    def __init__(self):
-        self.name = None
-        self.address_book = None
+    def __init__(self, security_zone):
+        self.name = self._get_name(security_zone)
+        self.address_book = self._get_address_book(security_zone)
         self.host_inbound_traffic = None
         self.interfaces = None
 
+    def _get_name(self, security_zone):
+
+        return security_zone.find('name').text
+
+    def _get_address_book(self, security_zone):
+        address_book_element = security_zone.find('address-book')
+
+        return AddressBook(address_book_element)
+
+    def get_security_zone(self, zone_name):
+        pass
+
+class AddressBook:
+    def __init__(self, address_book_element):
+        self.addresses = self._get_addresses(address_book_element)
+        self.address_sets = None
+
+    def _get_addresses(self, address_book_element):
+        addresses = {}
+        for address_element in address_book_element.findall('address'):
+            address = Address(address_element)
+            addresses[address.name] = address
+
+        return addresses
+
+    def _get_address_sets(self, address_book_element):
+        address_sets = {}
+        for address_set_element in address_book_element.findall('address-set'):
+            address_set = AddressSet(address_set_element)
+            address_sets[address_set.name] = address_set
+
+    def get_ip_prefixes(self, address_name):
+        is_address_set = False
+        ip_prefixes = []
+        if address_name in self.address_sets:
+            is_address_set = True
+
+        if is_address_set:
+            for name in self.address_sets[address_name]:
+                ip_prefixes.append(self.addresses[name])
+        elif address_name in self.addresses:
+            ip_prefixes.append(self.addresses[address_name])
+        else:
+            print('Error: address_name not found')
+        return ip_prefixes
 
 
+class Address:
+    def __init__(self, address_element):
+        self.name = address_element.find('name').text
+        self.ip_prefix = address_element.find('ip-prefix').text
 
+
+class AddressSet:
+    def __init__(self, address_set_element):
+        self.name = address_set_element.find('name').text
+        self.address_names = self._get_address_names(address_set_element)
+
+    def _get_address_names(self, address_set_element):
+        address_names = []
+        for address_element in address_set_element.findall('address'):
+            address_names.append(address_element.find('name').text)
+
+        return address_names
 
 def main():
     junos_file_xml = 'AUDCCFOIF003XML.xml'
@@ -321,6 +392,7 @@ def main():
 
     sec_conf = SecurityConfig(junos_config)
     sec_policies = sec_conf.policies
+    sec_zones = sec_conf.zones
 
     for policy in sec_policies.policies:
         from_zone = policy.from_zone_name
