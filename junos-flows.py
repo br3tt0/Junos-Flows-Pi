@@ -209,7 +209,7 @@ class AclPolicyActions:
             elif child.tag == 'count':
                 self.count = True
             elif child.tag == 'log':
-                self.log == True
+                self.log = True
             else:
                 self.action_unknown = True
                 print('Action Unknown: True', child.tag)
