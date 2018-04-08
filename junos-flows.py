@@ -17,7 +17,7 @@ class SecurityConfig:
         self.flow = None
         self.nat = None
         self.policies = self._get_security_policies(self.config_security)
-        self.zones = None
+        self.zones = self._get_security_zones(self.config_security)
 
     def _init_log(self, config_root):
         pass
@@ -39,8 +39,14 @@ class SecurityConfig:
 
         return SecurityPolicies(policies_element)
 
-    def _init_zones(self, config_root):
-        pass
+    def _get_security_zones(self, config_security):
+        zones_element = None
+        for child in config_security:
+            if child.tag == 'zones':
+                zones_element = child
+
+        return SecurityZones(zones_element)
+
 
     def _get_config_security(self, config_root):
         config_security = None
@@ -238,6 +244,68 @@ class AclPolicyActions:
 
         return actions
 
+class SecurityZones:
+    def __init__(self, zones_element):
+        self.functional_zone = self._get_functional_zones(zones_element)
+        self.security_zones = None
+
+    def _get_functional_zones(self, zones_element):
+        functional_zones_element = None
+        for child in zones_element:
+            if child.tag == 'functional-zone':
+                functional_zones_element = child
+                break
+        return FunctionalZones(functional_zones_element)
+
+
+class FunctionalZones:
+    def __init__(self, functional_zones_element):
+        self.management_zone_element = self._get_management_zone_element(functional_zones_element)
+        self.management_zone = ManagementZone(self.management_zone_element)
+
+    def _get_management_zone_element(self, functional_zones_element):
+        management_zone_element = None
+        for child in functional_zones_element:
+            if child.tag == 'management':
+                management_zone_element = child
+                break
+
+        return management_zone_element
+
+
+class ManagementZone:
+    def __init__(self, management_zone_element):
+        self.interfaces = self._get_interfaces(management_zone_element)
+        self.host_inbound_traffic = None
+
+    def _get_interfaces(self, management_zone_element):
+        interfaces = []
+        for child in management_zone_element:
+            if child.tag == 'interfaces':
+                interfaces.append(Interface(child))
+        return interfaces
+
+
+class Interface:
+    def __init__(self, interface_element):
+        self.name = self._get_name(interface_element)
+
+    def _get_name(self, interface_element):
+        name = interface_element.find('name').text
+
+        return name
+
+
+class SecurityZone:
+    def __init__(self):
+        self.name = None
+        self.address_book = None
+        self.host_inbound_traffic = None
+        self.interfaces = None
+
+
+
+
 
 def main():
     junos_file_xml = 'AUDCCFOIF003XML.xml'
@@ -256,7 +324,7 @@ def main():
         acl_count = 0
         print('Policy:')
         print('\t', 'From Zone: '+ from_zone)
-        print('\t', 'To: Zone: ' + to_zone)
+        print('\t', 'To Zone: ' + to_zone)
         print('\t', 'State: ' + policy_state)
 
         for acl in acl_policies:
