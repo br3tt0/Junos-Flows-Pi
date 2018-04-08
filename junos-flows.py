@@ -265,8 +265,20 @@ class SecurityZones:
 
         return security_zones
 
+    def get_security_zone(self, zone_name):
+        zone = None
+        for security_zone in self.security_zones:
+            if security_zone.name == zone_name:
+                zone = security_zone
+
+        return zone
+
     def get_ip_prefixes(self, zone_name, address_name):
-        pass
+        security_zone = self.get_security_zone(zone_name)
+        address_book = security_zone.address_book
+
+        return address_book.get_ip_prefixes(address_name)
+
 
 class FunctionalZones:
     def __init__(self, functional_zones_element):
@@ -328,13 +340,11 @@ class SecurityZone:
 
         return AddressBook(address_book_element)
 
-    def get_security_zone(self, zone_name):
-        pass
 
 class AddressBook:
     def __init__(self, address_book_element):
         self.addresses = self._get_addresses(address_book_element)
-        self.address_sets = None
+        self.address_sets = self._get_address_sets(address_book_element)
 
     def _get_addresses(self, address_book_element):
         addresses = {}
@@ -350,19 +360,23 @@ class AddressBook:
             address_set = AddressSet(address_set_element)
             address_sets[address_set.name] = address_set
 
+        return address_sets
+
     def get_ip_prefixes(self, address_name):
         is_address_set = False
         ip_prefixes = []
+
         if address_name in self.address_sets:
             is_address_set = True
 
         if is_address_set:
-            for name in self.address_sets[address_name]:
-                ip_prefixes.append(self.addresses[name])
+            address_set = self.address_sets[address_name]
+            for name in address_set.address_names:
+                ip_prefixes.append(self.addresses[name].ip_prefix)
         elif address_name in self.addresses:
-            ip_prefixes.append(self.addresses[address_name])
+            ip_prefixes.append(self.addresses[address_name].ip_prefix)
         else:
-            print('Error: address_name not found')
+            ip_prefixes.append('Error: address_name not found for address name \"' + address_name + '\"')
         return ip_prefixes
 
 
@@ -394,6 +408,12 @@ def main():
     sec_policies = sec_conf.policies
     sec_zones = sec_conf.zones
 
+    # zone = sec_zones.get_security_zone('DMZ-Content')
+    # address_book = zone.address_book
+    # print(address_book.addresses)
+    # print(address_book.address_sets)
+
+
     for policy in sec_policies.policies:
         from_zone = policy.from_zone_name
         to_zone = policy.to_zone_name
@@ -407,10 +427,24 @@ def main():
 
         for acl in acl_policies:
             acl_count += 1
+            source_addressnames = acl.match.source_zone_address_names
+            source_ip_prefixes = []
+            for address_name in source_addressnames:
+                for ip_prefix in sec_zones.get_ip_prefixes(from_zone, address_name):
+                    source_ip_prefixes.append(ip_prefix)
+
+            dest_addressnames = acl.match.destination_zone_address_names
+            # dest_ip_prefixes = []
+            # for address_name in dest_addressnames:
+            #     for ip_prefix in sec_zones.get_ip_prefixes(to_zone, address_name):
+            #         dest_ip_prefixes.append(ip_prefix)
+
             print('\t', 'ACL:', acl_count)
             print('\t\t', 'Description:', acl.description)
-            print('\t\t', 'Source Address Names:', acl.match.source_zone_address_names)
-            print('\t\t', 'Destination Address Names:', acl.match.destination_zone_address_names)
+            print('\t\t', 'Source Address Names:', source_addressnames)
+            print('\t\t', 'Source IP Prefixes:', source_ip_prefixes)
+            print('\t\t', 'Destination Address Names:', dest_addressnames)
+            # print('\t\t', 'Destination IP Prefixes:', dest_ip_prefixes)
             print('\t\t', 'Application Names:', acl.match.application_names)
             print('\t\t', 'Action:', acl.actions.get_actions())
 
